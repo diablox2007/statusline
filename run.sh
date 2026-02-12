@@ -258,6 +258,7 @@ gradient_text "\$${session_cost_fmt}" "${COST_COLORS[@]}"
 printf '%b' "${RST}"
 
 # ============================================================
-# === Line 2+: Usage (Python) ===
+# === Line 2+: Quota (Python, single-shot) ===
 # ============================================================
-echo "$input" | PYTHONPATH="${SCRIPT_DIR}/src" python3 -m statusline 2>/dev/null
+printf '\n'
+PYTHONPATH="${SCRIPT_DIR}/src" python3 -m statusline 2>/dev/null
