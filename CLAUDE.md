@@ -27,11 +27,17 @@ Dual-layer rendering — `run.sh` outputs multiple lines:
 
 **Last Prompt (Shell):** Extracts and displays the user's last message from transcript JSONL. Uses an awk state machine to strip system-injected command XML blocks (`<local-command-caveat>` through `</local-command-stdout>`) while preserving user text. CJK-width-aware wrapping (via inline Python `unicodedata.east_asian_width`) supports up to 2 lines with `...` truncation.
 
-**Info Line (Shell):** `run.sh` parses the Claude Code hook JSON with `jq`, renders path, model, context progress bar, effort level, output style, session duration, and cost. All rendering uses per-character ANSI 256-color gradients via the `gradient_text()` function.
+**Info Line (Shell):** `run.sh` parses the Claude Code hook JSON with `jq`, renders path, model, context progress bar, effort level, output style, session duration, cost, and current time. Components are separated by ` | ` (space-pipe-space). All rendering uses per-character ANSI 256-color gradients via the `gradient_text()` function. Format:
+```
+~/GitHub/statusline | Opus 4.6 | ▪▪▪▪▪▫▫▫▫▫ 116K/200K ⛃ 58% | ••• High | Explanatory | 24h12m | $96.10 | 9:20 PM
+```
 
-**Quota Lines (Python):** `run.sh` calls `python3 -m statusline`, which computes 4 quota entries and renders them as aligned progress bars.
+**Quota Lines (Python):** `run.sh` calls `python3 -m statusline`, which computes 4 quota entries and renders them as column-aligned lines with ` | ` separators. Format:
+```
+Session       ▪▪▪▫▫▫▫▫▫▫ 25.1k/88k  ⛃ 28.6% | Resets tomorrow 12am | 2h37m
+```
 
-Separator lines between sections are dynamically sized to match the info line's visible character width (computed from component lengths + 25 fixed chars). The width is passed to Python via `SEP_WIDTH` environment variable.
+Separator lines between sections are dynamically sized to match the info line's visible character width (computed from component lengths + 40 fixed chars). The width is passed to Python via `SEP_WIDTH` environment variable.
 
 ### Data Flow
 
@@ -94,7 +100,9 @@ Claude Code hook JSON (stdin)
 - `read_transcript_output_tokens()` is critical for session accuracy — `load_usage_entries()` dedup keeps first-seen entries which lose streaming cumulative values
 - **Last prompt extraction** must handle Claude Code's local command XML injection: `/clear`, `/context` etc. inject `<local-command-caveat>...<command-name>...<local-command-stdout>...</local-command-stdout>` blocks into user messages. The awk state machine strips the block but preserves user text that follows it (or contains literal tag names)
 - **CJK display width**: Chinese characters occupy 2 terminal columns but count as 1 in bash `${#var}`. All prompt width calculations use `unicodedata.east_asian_width()` via inline Python
-- **Separator width sync**: `run.sh` computes `line2_len` from component string lengths + 25 fixed chars, passes to Python as `SEP_WIDTH` env var
+- **Separator format**: All components use ` | ` (space-pipe-space) as delimiter. The ⛃ (U+26C3, White Draughts Man) icon precedes each percentage as a capacity indicator
+- **Separator width sync**: `run.sh` computes `line2_len` from component string lengths + 40 fixed chars, passes to Python as `SEP_WIDTH` env var
+- **Statusline hook timing**: The hook fires **after** each API response completes (~1-2 calls per assistant turn, ≥4s apart). There is no "request start" signal — the hook only provides post-completion snapshots. This means real-time state transitions (processing → idle) cannot be detected
 
 ## Configuration (Environment Variables)
 

@@ -87,10 +87,12 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
     _w(f"{CLEAR_LINE}{C_SEP}" + "\u2500" * sep_w + f"{RST}\n")
     lines += 1
 
-    # Column widths
+    C_PIPE = f"{C_DIM}|{RST}"
+    C_ICON = _fg(240)  # dim icon color for ⛃
+
+    # Column widths for alignment
     max_label = max(len(e.label) for e, _ in entries)
 
-    # Value texts: tokens "40.2k/88k" or money "$22.73/$50.00"
     val_texts: list[str] = []
     for e, _ in entries:
         if e.used > 0 or e.total > 0:
@@ -101,18 +103,12 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
             val_texts.append("")
     max_val = max((len(v) for v in val_texts), default=0)
 
-    pct_texts = [f"({e.pct:g}%)" for e, _ in entries]
+    pct_texts = [f"{e.pct:g}%" for e, _ in entries]
     max_pct = max(len(p) for p in pct_texts)
 
-    tail_texts: list[str] = []
-    for e, _ in entries:
-        parts = ""
-        if e.reset_label:
-            parts += f"Resets {e.reset_label}"
-        tail_texts.append(parts)
+    tail_texts = [f"Resets {e.reset_label}" if e.reset_label else "" for e, _ in entries]
     max_tail = max((len(t) for t in tail_texts), default=0)
 
-    # Compute max remaining width for right-padding (avoid trailing jitter)
     max_rem = max((len(r) for _, r in entries if r), default=0)
 
     for (entry, remaining), val_text, pct_text, tail_text in zip(
@@ -120,14 +116,14 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
     ):
         _w(CLEAR_LINE)
 
-        # Label
+        # Label (padded)
         pad_l = max_label + 1 - len(entry.label)
         _w(f"{C_LABEL}{entry.label}{RST}{' ' * pad_l}")
 
         # Bar
         _w(_bar(entry.pct))
 
-        # Value: tokens or money (right after bar)
+        # Value: tokens or money (padded)
         if val_text:
             pad_v = max_val - len(val_text)
             if entry.used > 0 or entry.total > 0:
@@ -137,21 +133,21 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
         elif max_val > 0:
             _w(" " * (max_val + 1))
 
-        # Percentage in dim parens
+        # ⛃ Percentage (padded)
         pad_p = max_pct - len(pct_text)
-        _w(f" {C_DIM}({RST}{C_PCT}{entry.pct:g}%{RST}{C_DIM}){RST}{' ' * pad_p} ")
+        _w(f" {C_ICON}\u26c3 {C_PCT}{entry.pct:g}%{RST}{' ' * pad_p}")
 
-        # Reset (padded)
-        colored_tail = ""
-        if entry.reset_label:
-            colored_tail += f"{C_DIM}Resets {entry.reset_label}{RST}"
-        pad_t = max_tail + 1 - len(tail_text)
-        _w(f"{colored_tail}{' ' * pad_t}")
+        # | Reset info (padded)
+        if tail_text:
+            pad_t = max_tail - len(tail_text)
+            _w(f" {C_PIPE} {C_DIM}{tail_text}{RST}{' ' * pad_t}")
+        elif max_tail > 0:
+            _w(" " * (max_tail + 3))
 
-        # [remaining] (padded to max width to avoid flicker)
+        # | Countdown (padded)
         if remaining:
             pad_r = max_rem - len(remaining)
-            _w(f"{C_DIM}[{RST}{C_PCT}{remaining}{RST}{' ' * pad_r}{C_DIM}]{RST}")
+            _w(f" {C_PIPE} {C_PCT}{remaining}{RST}{' ' * pad_r}")
 
         _w("\n")
         lines += 1

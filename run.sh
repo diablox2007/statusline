@@ -11,6 +11,7 @@ input=$(cat)
 # DEBUG: dump JSON input to temp file
 echo "$input" > /tmp/claude_statusline_debug.json
 
+
 # ============================================================
 # === Line 1: Moonstone gradient (pure shell) ===
 # ============================================================
@@ -213,8 +214,8 @@ esac
 # --- Cost ---
 COST_COLORS=(186 222 228 229 230)
 
-# --- Time ---
-TIME_COLORS=(146 147 153 189)
+# --- Time (soft lavender → light blue) ---
+TIME_COLORS=(183 189 195 225)
 
 # === Clickable folder (OSC 8 hyperlink) ===
 LINK_S="\033]8;;file://${cwd}\a"
@@ -256,8 +257,8 @@ ctx_nums="${input_k}/${window_k}"
 ctx_pct="${used_pct_formatted}%"
 
 # Dynamic separator width: match Line 2 visible character count
-# Fixed chars: |×5=5  ·×2=2  bar=10  space=1  " ("=2  ")"=1  •••=3  space=1  $=1 → 26
-line2_len=$(( ${#display_path} + ${#model} + ${#ctx_nums} + ${#ctx_pct} + ${#EFFORT_LABEL_TEXT} + ${#output_style} + ${#duration_fmt} + ${#session_cost_fmt} + ${#current_time} + 26 ))
+# Fixed chars: " | "×7=21  bar=10  space×2=2  "⛃ "=2  •••=3  space=1  $=1 → 40
+line2_len=$(( ${#display_path} + ${#model} + ${#ctx_nums} + ${#ctx_pct} + ${#EFFORT_LABEL_TEXT} + ${#output_style} + ${#duration_fmt} + ${#session_cost_fmt} + ${#current_time} + 40 ))
 sep=""; for ((i=0; i<line2_len; i++)); do sep+="─"; done
 SEP_LINE="${C_SEP}${sep}${RST}"
 
@@ -299,7 +300,7 @@ print(l2)
   printf '%b' "${SEP_LINE}\n"
 fi
 
-# Line 2: Path|Model·ProgressBar|Effort·Style|Duration|Cost
+# Line 2: Path | Model | Bar tokens pct% | ••• Effort·Style | Duration | Cost | Time
 
 # Path (theme gradient + clickable link)
 printf '%b' "${LINK_S}"
@@ -307,41 +308,36 @@ gradient_text "$display_path" "${THEME_PATH[@]}"
 printf '%b' "${LINK_E}${RST}"
 
 # | Model
-printf '%b' "${C_SEP}|${RST}"
+printf '%b' " ${C_SEP}|${RST} "
 gradient_text "$model" "${THEME_MODEL[@]}"
 printf '%b' "${RST}"
 
-# · ▪▪▪▫▫▫▫▫▫▫ (progress bar)
-printf '%b' "${C_SEP}·${RST}${CTX_BAR_COLOR}${CTX_BAR_FILLED}${C_EMPTY}${CTX_BAR_EMPTY}${RST} "
-
-# xxK/xxK (xx%)
+# | ▪▪▪▫▫▫▫▫▫▫ xxK/xxK ⛃xx%
+printf '%b' " ${C_SEP}|${RST} ${CTX_BAR_COLOR}${CTX_BAR_FILLED}${C_EMPTY}${CTX_BAR_EMPTY}${RST} "
 gradient_text "$ctx_nums" "${CTX_COLORS[@]}"
-printf '%b' "${RST} ${C_PAREN}("
+printf '%b' " ${C_PAREN}⛃ "
 gradient_text "$ctx_pct" "${CTX_COLORS[@]}"
-printf '%b' "${C_PAREN})${RST}"
-
-# | ••• High
-printf '%b' "${C_SEP}|${RST}${EFFORT_DOTS}${RST} "
-gradient_text "$EFFORT_LABEL_TEXT" "${EFFORT_LABEL_COLORS[@]}"
 printf '%b' "${RST}"
 
-# · Explanatory
-printf '%b' "${C_SEP}·${RST}"
+# | ••• High | Explanatory
+printf '%b' " ${C_SEP}|${RST} ${EFFORT_DOTS}${RST} "
+gradient_text "$EFFORT_LABEL_TEXT" "${EFFORT_LABEL_COLORS[@]}"
+printf '%b' " ${C_SEP}|${RST} "
 gradient_text "$output_style" "${STYLE_COLORS[@]}"
 printf '%b' "${RST}"
 
-# | 3m42s
-printf '%b' "${C_SEP}|${RST}"
-gradient_text "$duration_fmt" "${THEME_DURATION[@]}"
-printf '%b' "${RST}"
-
 # | $1.25
-printf '%b' "${C_SEP}|${RST}"
+printf '%b' " ${C_SEP}|${RST} "
 gradient_text "\$${session_cost_fmt}" "${COST_COLORS[@]}"
 printf '%b' "${RST}"
 
+# | 3m42s
+printf '%b' " ${C_SEP}|${RST} "
+gradient_text "$duration_fmt" "${THEME_DURATION[@]}"
+printf '%b' "${RST}"
+
 # | 9:32 PM
-printf '%b' "${C_SEP}|${RST}"
+printf '%b' " ${C_SEP}|${RST} "
 gradient_text "$current_time" "${TIME_COLORS[@]}"
 printf '%b' "${RST}"
 

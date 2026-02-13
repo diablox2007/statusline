@@ -42,7 +42,7 @@ def _format_reset_label(dt: datetime) -> str:
     if local.date() == now.date():
         return time_str
     if local.date() == (now + timedelta(days=1)).date():
-        return f"tmrw {time_str}"
+        return f"tomorrow {time_str}"
     month = local.strftime("%b")
     return f"{month} {local.day} at {time_str}"
 
