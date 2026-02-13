@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 from .models import QuotaData, calc_remaining
@@ -81,8 +82,9 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
         remaining = calc_remaining(e.reset_at) if e.reset_at else e.remaining
         entries.append((e, remaining))
 
-    # Separator
-    _w(f"{CLEAR_LINE}{C_SEP}" + "\u2500" * 60 + f"{RST}\n")
+    # Separator (width synced with shell Line 2 via SEP_WIDTH env)
+    sep_w = int(os.environ.get("SEP_WIDTH", "60"))
+    _w(f"{CLEAR_LINE}{C_SEP}" + "\u2500" * sep_w + f"{RST}\n")
     lines += 1
 
     # Column widths

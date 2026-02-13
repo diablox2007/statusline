@@ -224,17 +224,23 @@ if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
     | grep '"type":"user"\|"type": "user"' \
     | jq -r '
       (.message.content // .content // "") |
-      if type == "string" then .
-      elif type == "array" then [.[] | select(.type == "text") | .text] | join(" ")
+      if type == "string" then gsub("\n"; " ")
+      elif type == "array" then [.[] | select(.type == "text") | .text] | join(" ") | gsub("\n"; " ")
       else ""
       end
     ' 2>/dev/null \
+    | awk '
+        /<local-command-caveat>/ { cmd=1 }
+        cmd && /<\/local-command-stdout>/ {
+          sub(/.*<\/local-command-stdout>/, ""); cmd=0
+          if (/[^[:space:]]/) print; next
+        }
+        cmd { next }
+        { print }
+      ' \
+    | sed 's/[[:space:]]\{2,\}/ /g; s/^[[:space:]]*//; s/[[:space:]]*$//' \
     | grep -v '^$' \
     | tail -1)
-  # Truncate to 100 characters
-  if [ -n "$last_prompt" ] && [ ${#last_prompt} -gt 100 ]; then
-    last_prompt="${last_prompt:0:100}..."
-  fi
 fi
 
 # ============================================================
@@ -242,14 +248,48 @@ fi
 # ============================================================
 ctx_nums="${input_k}/${window_k}"
 ctx_pct="${used_pct_formatted}%"
-SEP_LINE="${C_SEP}────────────────────────────────────────────────────────────${RST}"
 
-# Line 1: → last user prompt
+# Dynamic separator width: match Line 2 visible character count
+# Fixed chars: |×4=4  ·×2=2  bar=10  space=1  " ("=2  ")"=1  •••=3  space=1  $=1 → 25
+line2_len=$(( ${#display_path} + ${#model} + ${#ctx_nums} + ${#ctx_pct} + ${#EFFORT_LABEL_TEXT} + ${#output_style} + ${#duration_fmt} + ${#session_cost_fmt} + 25 ))
+sep=""; for ((i=0; i<line2_len; i++)); do sep+="─"; done
+SEP_LINE="${C_SEP}${sep}${RST}"
+
+# Line 1: → last user prompt (wrap up to 2 lines, CJK-width-aware)
 if [ -n "$last_prompt" ]; then
   PROMPT_COLORS=(243 245 247 249 250)
+  prompt_max=$((line2_len - 2))  # "→ " or "  " prefix = 2 display cols
+
+  # Width-aware line wrapping via Python (CJK chars = 2 columns)
+  { read -r prompt_line1; read -r prompt_line2; } < <(python3 -c "
+import unicodedata,sys
+def cw(c):return 2 if unicodedata.east_asian_width(c)in('F','W')else 1
+def cut(s,w):
+ c=0
+ for i,ch in enumerate(s):
+  c+=cw(ch)
+  if c>w:return s[:i],s[i:]
+ return s,''
+t,mx=sys.argv[1],int(sys.argv[2])
+l1,r=cut(t,mx)
+l2=''
+if r:
+ l2,ov=cut(r,mx)
+ if ov:
+  l2,_=cut(r,mx-3)
+  l2+='...'
+print(l1)
+print(l2)
+" "$last_prompt" "$prompt_max" 2>/dev/null)
+
   printf '%b' "\033[38;5;243m→ ${RST}"
-  gradient_text "$last_prompt" "${PROMPT_COLORS[@]}"
+  gradient_text "$prompt_line1" "${PROMPT_COLORS[@]}"
   printf '%b' "${RST}\n"
+  if [ -n "$prompt_line2" ]; then
+    printf '%b' "  "
+    gradient_text "$prompt_line2" "${PROMPT_COLORS[@]}"
+    printf '%b' "${RST}\n"
+  fi
   printf '%b' "${SEP_LINE}\n"
 fi
 
@@ -296,4 +336,4 @@ printf '%b' "${RST}"
 
 # Line 3+: Quota (Python, single-shot)
 printf '\n'
-PYTHONPATH="${SCRIPT_DIR}/src" python3 -m statusline 2>/dev/null
+PYTHONPATH="${SCRIPT_DIR}/src" SEP_WIDTH="$line2_len" python3 -m statusline 2>/dev/null
