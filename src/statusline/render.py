@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from .quota import QuotaData, calc_remaining
+from .models import QuotaData, calc_remaining
 
 RST = "\033[0m"
 
@@ -32,6 +32,17 @@ SHOW_CURSOR = "\033[?25h"
 
 def _w(s: str) -> None:
     sys.stdout.write(s)
+
+
+def _fmt_tokens(n: int) -> str:
+    """Format token count: 785 → '785', 8785 → '8.8k', 88000 → '88k', 1000000 → '1M'."""
+    if n < 1000:
+        return str(n)
+    if n >= 1_000_000:
+        m = n / 1_000_000
+        return f"{m:.0f}M" if m == int(m) else f"{m:.1f}M"
+    k = n / 1000
+    return f"{k:.0f}k" if k == int(k) else f"{k:.1f}k"
 
 
 def _bar(pct: float) -> str:
@@ -72,20 +83,34 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
     # Column widths
     max_label = max(len(e.label) for e, _ in entries)
 
-    mid_texts: list[str] = []
+    # Value texts: tokens "40.2k/88k" or money "$22.73/$50.00"
+    val_texts: list[str] = []
+    for e, _ in entries:
+        if e.used > 0 or e.total > 0:
+            val_texts.append(f"{_fmt_tokens(e.used)}/{_fmt_tokens(e.total)}")
+        elif e.spent > 0 or e.limit > 0:
+            val_texts.append(f"${e.spent:.2f}/${e.limit:.2f}")
+        else:
+            val_texts.append("")
+    max_val = max((len(v) for v in val_texts), default=0)
+
+    pct_texts = [f"({e.pct:g}%)" for e, _ in entries]
+    max_pct = max(len(p) for p in pct_texts)
+
+    tail_texts: list[str] = []
     for e, _ in entries:
         parts = ""
-        if e.spent > 0 or e.limit > 0:
-            parts += f"${e.spent:.2f}/${e.limit:.2f} "
         if e.reset_label:
             parts += f"Resets {e.reset_label}"
-        mid_texts.append(parts)
-    max_mid = max((len(m) for m in mid_texts), default=0)
+        tail_texts.append(parts)
+    max_tail = max((len(t) for t in tail_texts), default=0)
 
     # Compute max remaining width for right-padding (avoid trailing jitter)
     max_rem = max((len(r) for _, r in entries if r), default=0)
 
-    for (entry, remaining), mid_text in zip(entries, mid_texts):
+    for (entry, remaining), val_text, pct_text, tail_text in zip(
+        entries, val_texts, pct_texts, tail_texts,
+    ):
         _w(CLEAR_LINE)
 
         # Label
@@ -95,19 +120,26 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
         # Bar
         _w(_bar(entry.pct))
 
-        # Percentage
-        pct_s = f"{entry.pct:g}%"
-        pad_p = 4 - len(pct_s)
-        _w(f" {C_PCT}{pct_s}{RST}{' ' * pad_p}")
+        # Value: tokens or money (right after bar)
+        if val_text:
+            pad_v = max_val - len(val_text)
+            if entry.used > 0 or entry.total > 0:
+                _w(f" {C_PCT}{_fmt_tokens(entry.used)}{C_DIM}/{RST}{C_PCT}{_fmt_tokens(entry.total)}{RST}{' ' * pad_v}")
+            else:
+                _w(f" {C_MONEY}${entry.spent:.2f}{C_DIM}/{RST}{C_MONEY}${entry.limit:.2f}{RST}{' ' * pad_v}")
+        elif max_val > 0:
+            _w(" " * (max_val + 1))
 
-        # Spent + Reset (padded)
-        colored_mid = ""
-        if entry.spent > 0 or entry.limit > 0:
-            colored_mid += f"{C_MONEY}${entry.spent:.2f}{C_DIM}/{RST}{C_MONEY}${entry.limit:.2f}{RST} "
+        # Percentage in dim parens
+        pad_p = max_pct - len(pct_text)
+        _w(f" {C_DIM}({RST}{C_PCT}{entry.pct:g}%{RST}{C_DIM}){RST}{' ' * pad_p} ")
+
+        # Reset (padded)
+        colored_tail = ""
         if entry.reset_label:
-            colored_mid += f"{C_DIM}Resets {entry.reset_label}{RST}"
-        pad_m = max_mid + 1 - len(mid_text)
-        _w(f"{colored_mid}{' ' * pad_m}")
+            colored_tail += f"{C_DIM}Resets {entry.reset_label}{RST}"
+        pad_t = max_tail + 1 - len(tail_text)
+        _w(f"{colored_tail}{' ' * pad_t}")
 
         # [remaining] (padded to max width to avoid flicker)
         if remaining:

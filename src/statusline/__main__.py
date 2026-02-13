@@ -13,19 +13,22 @@ import signal
 import sys
 import time
 
-from .quota import get_quota_path, read_quota
+from .config import HOOK_JSON
+from .core.analyzer import compute_quota
 from .render import HIDE_CURSOR, SHOW_CURSOR, render_quota
 
 
 def _run_once() -> None:
-    quota = read_quota()
+    quota = compute_quota()
     render_quota(quota)
 
 
 def _run_live() -> None:
-    path = get_quota_path()
+    from pathlib import Path
+
+    hook_path = Path(HOOK_JSON)
     last_mtime: float = 0
-    quota = read_quota()
+    quota = compute_quota()
     prev_lines = 0
 
     sys.stdout.write(HIDE_CURSOR)
@@ -42,11 +45,11 @@ def _run_live() -> None:
     try:
         while True:
             try:
-                mtime = path.stat().st_mtime
+                mtime = hook_path.stat().st_mtime
             except OSError:
                 mtime = 0
             if mtime != last_mtime:
-                quota = read_quota()
+                quota = compute_quota()
                 last_mtime = mtime
 
             prev_lines = render_quota(quota, rewind=prev_lines)

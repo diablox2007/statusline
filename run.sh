@@ -4,6 +4,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+command -v jq >/dev/null 2>&1 || exit 0
+
 input=$(cat)
 
 # DEBUG: dump JSON input to temp file
