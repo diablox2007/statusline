@@ -215,10 +215,45 @@ LINK_S="\033]8;;file://${cwd}\a"
 LINK_E="\033]8;;\a"
 
 # ============================================================
-# === Output Line 1 ===
+# === Extract last user prompt (from transcript JSONL) ===
+# ============================================================
+transcript_path=$(echo "$input" | jq -r '.transcript_path // ""')
+last_prompt=""
+if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+  last_prompt=$(tail -500 "$transcript_path" \
+    | grep '"type":"user"\|"type": "user"' \
+    | jq -r '
+      (.message.content // .content // "") |
+      if type == "string" then .
+      elif type == "array" then [.[] | select(.type == "text") | .text] | join(" ")
+      else ""
+      end
+    ' 2>/dev/null \
+    | grep -v '^$' \
+    | tail -1)
+  # Truncate to 100 characters
+  if [ -n "$last_prompt" ] && [ ${#last_prompt} -gt 100 ]; then
+    last_prompt="${last_prompt:0:100}..."
+  fi
+fi
+
+# ============================================================
+# === Output ===
 # ============================================================
 ctx_nums="${input_k}/${window_k}"
 ctx_pct="${used_pct_formatted}%"
+SEP_LINE="${C_SEP}────────────────────────────────────────────────────────────${RST}"
+
+# Line 1: → last user prompt
+if [ -n "$last_prompt" ]; then
+  PROMPT_COLORS=(243 245 247 249 250)
+  printf '%b' "\033[38;5;243m→ ${RST}"
+  gradient_text "$last_prompt" "${PROMPT_COLORS[@]}"
+  printf '%b' "${RST}\n"
+  printf '%b' "${SEP_LINE}\n"
+fi
+
+# Line 2: Path|Model·ProgressBar|Effort·Style|Duration|Cost
 
 # Path (theme gradient + clickable link)
 printf '%b' "${LINK_S}"
@@ -259,8 +294,6 @@ printf '%b' "${C_SEP}|${RST}"
 gradient_text "\$${session_cost_fmt}" "${COST_COLORS[@]}"
 printf '%b' "${RST}"
 
-# ============================================================
-# === Line 2+: Quota (Python, single-shot) ===
-# ============================================================
+# Line 3+: Quota (Python, single-shot)
 printf '\n'
 PYTHONPATH="${SCRIPT_DIR}/src" python3 -m statusline 2>/dev/null
