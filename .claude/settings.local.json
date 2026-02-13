@@ -88,7 +88,11 @@
       "Bash(# Check what the last user prompt extraction would show right now transcript=\"\"/Users/dl/.claude/projects/-Users-dl-GitHub-statusline/b28eed47-215f-493c-8ed9-b911e80cdbc5.jsonl\"\" tail -500 \"\"$transcript\"\" \\\\ | grep ''\"\"type\"\":\"\"user\"\"\\\\|\"\"type\"\": \"\"user\"\"'' \\\\ | jq -r ''[\\(.message.content // .content // []\\)[] | select\\(.type == \"\"text\"\"\\) | .text] | join\\(\"\" \"\"\\)'' \\\\)",
       "Bash(# Test the fix transcript=\"\"/Users/dl/.claude/projects/-Users-dl-GitHub-statusline/b28eed47-215f-493c-8ed9-b911e80cdbc5.jsonl\"\" tail -500 \"\"$transcript\"\" \\\\ | grep ''\"\"type\"\":\"\"user\"\"\\\\|\"\"type\"\": \"\"user\"\"'' \\\\ | jq -r '' \\(.message.content // .content // \"\"\"\"\\) | if type == \"\"string\"\" then . elif type == \"\"array\"\" then [.[] | select\\(.type == \"\"text\"\"\\) | .text] | join\\(\"\" \"\"\\) else \"\"\"\" end '' \\\\)",
       "Bash(for i in 1 2)",
-      "Bash(do echo '{\"\"model\"\":{\"\"id\"\":\"\"claude-opus-4-6\"\",\"\"display_name\"\":\"\"Opus 4.6\"\"},\"\"workspace\"\":{\"\"current_dir\"\":\"\"/Users/dl/GitHub/statusline\"\"},\"\"cwd\"\":\"\"/Users/dl/GitHub/statusline\"\",\"\"context_window\"\":{\"\"used_percentage\"\":45.2,\"\"context_window_size\"\":200000,\"\"current_usage\"\":{\"\"input_tokens\"\":80000,\"\"output_tokens\"\":10000}},\"\"cost\"\":{\"\"total_cost_usd\"\":2.35,\"\"total_duration_ms\"\":720000},\"\"output_style\"\":{\"\"name\"\":\"\"Explanatory\"\"},\"\"transcript_path\"\":\"\"\"\"}')"
+      "Bash(do echo '{\"\"model\"\":{\"\"id\"\":\"\"claude-opus-4-6\"\",\"\"display_name\"\":\"\"Opus 4.6\"\"},\"\"workspace\"\":{\"\"current_dir\"\":\"\"/Users/dl/GitHub/statusline\"\"},\"\"cwd\"\":\"\"/Users/dl/GitHub/statusline\"\",\"\"context_window\"\":{\"\"used_percentage\"\":45.2,\"\"context_window_size\"\":200000,\"\"current_usage\"\":{\"\"input_tokens\"\":80000,\"\"output_tokens\"\":10000}},\"\"cost\"\":{\"\"total_cost_usd\"\":2.35,\"\"total_duration_ms\"\":720000},\"\"output_style\"\":{\"\"name\"\":\"\"Explanatory\"\"},\"\"transcript_path\"\":\"\"\"\"}')",
+      "Bash(# Find all JSONL transcript files modified in last 6 hours \\(potentially active sessions\\) find ~/.claude/projects -name \"\"*.jsonl\"\" -mmin -360 -exec ls -la {} \\\\;)",
+      "Bash(sort:*)",
+      "Bash(PYTHONPATH=/Users/dl/GitHub/statusline/src SEP_WIDTH=80 python3:*)",
+      "Bash(git checkout:*)"
     ]
   },
   "outputStyle": "Explanatory"
