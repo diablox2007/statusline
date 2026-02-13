@@ -23,19 +23,26 @@ No build step, no install, no virtualenv needed. Requires `jq` for the shell lay
 
 ## Architecture
 
-Dual-layer rendering — `run.sh` outputs two lines:
+Dual-layer rendering — `run.sh` outputs multiple lines:
 
-**Line 1 (Shell):** `run.sh` parses the Claude Code hook JSON with `jq`, renders path, model, context progress bar, effort level, output style, session duration, and cost. All rendering uses per-character ANSI 256-color gradients via the `gradient_text()` function.
+**Last Prompt (Shell):** Extracts and displays the user's last message from transcript JSONL. Uses an awk state machine to strip system-injected command XML blocks (`<local-command-caveat>` through `</local-command-stdout>`) while preserving user text. CJK-width-aware wrapping (via inline Python `unicodedata.east_asian_width`) supports up to 2 lines with `...` truncation.
 
-**Line 2 (Python):** `run.sh` calls `python3 -m statusline`, which computes 4 quota entries and renders them as aligned progress bars.
+**Info Line (Shell):** `run.sh` parses the Claude Code hook JSON with `jq`, renders path, model, context progress bar, effort level, output style, session duration, and cost. All rendering uses per-character ANSI 256-color gradients via the `gradient_text()` function.
+
+**Quota Lines (Python):** `run.sh` calls `python3 -m statusline`, which computes 4 quota entries and renders them as aligned progress bars.
+
+Separator lines between sections are dynamically sized to match the info line's visible character width (computed from component lengths + 25 fixed chars). The width is passed to Python via `SEP_WIDTH` environment variable.
 
 ### Data Flow
 
 ```
 Claude Code hook JSON (stdin)
   → run.sh writes to /tmp/claude_statusline_debug.json
-  → run.sh renders Line 1 (gradient shell output)
-  → python3 -m statusline
+  → run.sh extracts last user prompt from transcript JSONL
+    → awk strips command XML blocks, jq merges newlines
+    → Python inline: CJK-width-aware wrapping (up to 2 lines)
+  → run.sh renders info line (gradient shell output)
+  → SEP_WIDTH=$line2_len python3 -m statusline
     → core/analyzer.py: compute_quota()
       1. Session %: read transcript JSONL directly (last entry per request)
          → output_tokens / plan_output_limit
@@ -85,6 +92,9 @@ Claude Code hook JSON (stdin)
 - Context usage colors shift semantically: green (<60%), amber (60-80%), red (≥80%)
 - `calc_remaining()` in `models.py` dynamically computes countdown strings from ISO 8601 timestamps
 - `read_transcript_output_tokens()` is critical for session accuracy — `load_usage_entries()` dedup keeps first-seen entries which lose streaming cumulative values
+- **Last prompt extraction** must handle Claude Code's local command XML injection: `/clear`, `/context` etc. inject `<local-command-caveat>...<command-name>...<local-command-stdout>...</local-command-stdout>` blocks into user messages. The awk state machine strips the block but preserves user text that follows it (or contains literal tag names)
+- **CJK display width**: Chinese characters occupy 2 terminal columns but count as 1 in bash `${#var}`. All prompt width calculations use `unicodedata.east_asian_width()` via inline Python
+- **Separator width sync**: `run.sh` computes `line2_len` from component string lengths + 25 fixed chars, passes to Python as `SEP_WIDTH` env var
 
 ## Configuration (Environment Variables)
 
