@@ -34,6 +34,11 @@ def _w(s: str) -> None:
     sys.stdout.write(s)
 
 
+def _fmt_money(v: float) -> str:
+    """Format dollar amount: 50.0 → '$50', 22.73 → '$22.73'."""
+    return f"${v:.0f}" if v == int(v) else f"${v:.2f}"
+
+
 def _fmt_tokens(n: int) -> str:
     """Format token count: 785 → '785', 8785 → '8.8k', 88000 → '88k', 1000000 → '1M'."""
     if n < 1000:
@@ -89,7 +94,7 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
         if e.used > 0 or e.total > 0:
             val_texts.append(f"{_fmt_tokens(e.used)}/{_fmt_tokens(e.total)}")
         elif e.spent > 0 or e.limit > 0:
-            val_texts.append(f"${e.spent:.2f}/${e.limit:.2f}")
+            val_texts.append(f"{_fmt_money(e.spent)}/{_fmt_money(e.limit)}")
         else:
             val_texts.append("")
     max_val = max((len(v) for v in val_texts), default=0)
@@ -126,7 +131,7 @@ def render_quota(quota: QuotaData, rewind: int = 0) -> int:
             if entry.used > 0 or entry.total > 0:
                 _w(f" {C_PCT}{_fmt_tokens(entry.used)}{C_DIM}/{RST}{C_PCT}{_fmt_tokens(entry.total)}{RST}{' ' * pad_v}")
             else:
-                _w(f" {C_MONEY}${entry.spent:.2f}{C_DIM}/{RST}{C_MONEY}${entry.limit:.2f}{RST}{' ' * pad_v}")
+                _w(f" {C_MONEY}{_fmt_money(entry.spent)}{C_DIM}/{RST}{C_MONEY}{_fmt_money(entry.limit)}{RST}{' ' * pad_v}")
         elif max_val > 0:
             _w(" " * (max_val + 1))
 
