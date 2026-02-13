@@ -95,6 +95,9 @@ fi
 session_cost=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
 session_cost_fmt=$(printf "%.2f" "$session_cost" 2>/dev/null || echo "0.00")
 
+# === Current time ===
+current_time=$(date +'%-I:%M %p')
+
 # === Detect fast mode ===
 style_name=$(echo "$input" | jq -r '.output_style.name // ""')
 is_fast=false
@@ -210,6 +213,9 @@ esac
 # --- Cost ---
 COST_COLORS=(186 222 228 229 230)
 
+# --- Time ---
+TIME_COLORS=(146 147 153 189)
+
 # === Clickable folder (OSC 8 hyperlink) ===
 LINK_S="\033]8;;file://${cwd}\a"
 LINK_E="\033]8;;\a"
@@ -250,8 +256,8 @@ ctx_nums="${input_k}/${window_k}"
 ctx_pct="${used_pct_formatted}%"
 
 # Dynamic separator width: match Line 2 visible character count
-# Fixed chars: |×4=4  ·×2=2  bar=10  space=1  " ("=2  ")"=1  •••=3  space=1  $=1 → 25
-line2_len=$(( ${#display_path} + ${#model} + ${#ctx_nums} + ${#ctx_pct} + ${#EFFORT_LABEL_TEXT} + ${#output_style} + ${#duration_fmt} + ${#session_cost_fmt} + 25 ))
+# Fixed chars: |×5=5  ·×2=2  bar=10  space=1  " ("=2  ")"=1  •••=3  space=1  $=1 → 26
+line2_len=$(( ${#display_path} + ${#model} + ${#ctx_nums} + ${#ctx_pct} + ${#EFFORT_LABEL_TEXT} + ${#output_style} + ${#duration_fmt} + ${#session_cost_fmt} + ${#current_time} + 26 ))
 sep=""; for ((i=0; i<line2_len; i++)); do sep+="─"; done
 SEP_LINE="${C_SEP}${sep}${RST}"
 
@@ -332,6 +338,11 @@ printf '%b' "${RST}"
 # | $1.25
 printf '%b' "${C_SEP}|${RST}"
 gradient_text "\$${session_cost_fmt}" "${COST_COLORS[@]}"
+printf '%b' "${RST}"
+
+# | 9:32 PM
+printf '%b' "${C_SEP}|${RST}"
+gradient_text "$current_time" "${TIME_COLORS[@]}"
 printf '%b' "${RST}"
 
 # Line 3+: Quota (Python, single-shot)
